@@ -1,0 +1,74 @@
+--- sbopkg	2025-04-04 21:04:17.826133600 +0300
++++ /usr/sbin/sbopkg	2025-04-04 21:13:02.527149613 +0300
+@@ -2780,11 +2780,6 @@
+ 
+ read_info() {
+     # Read the info file specified in $1.
+-    # This used to be a plain ". $INFO", but due to the changes required to
+-    # support multiple arches and source files (both features are planned
+-    # for the Slackware 13.0 release) it needs some more work.
+-    # The DOWNLOAD and MD5SUM arrays will always contain the "right"
+-    # (possibly ARCH-dependent) values.
+ 
+     local INFO=$1
+     local i DOWNLOAD_ARCH DLSAVE MDSAVE REPLY
+@@ -2794,28 +2789,24 @@
+ 
+     # Parse the .info file
+     . $INFO
+-    # Assign the proper entries to DOWNLOAD and MD5SUM.
++
++    # Assign the appropriate entries to DOWNLOAD and MD5SUM.
+     DOWNLOAD_ARCH=$(eval echo \$DOWNLOAD_$ARCH)
++
++    # If DOWNLOAD for aarch64 is not found, try x86_64.
++    if [[ -z $DOWNLOAD_ARCH && $ARCH == "aarch64" ]]; then
++        DOWNLOAD_ARCH=$(eval echo \$DOWNLOAD_x86_64)
++    fi
++
++    # If neither aarch64 nor x86_64 is found, fall back to the default DOWNLOAD.
+     if [[ -n $DOWNLOAD_ARCH ]]; then
+         DLSAVE=$DOWNLOAD
+         MDSAVE=$MD5SUM
+         DOWNLOAD=$DOWNLOAD_ARCH
+         MD5SUM=$(eval echo \$MD5SUM_$ARCH)
+     fi
+-    # Note: on SBo pre-13.0 repositories, as well as on current non-SBo
+-    # repositories, none of the above triggers. In that case, we use the
+-    # provided DOWNLOAD and MD5SUM variables, which is exactly the old-style
+-    # behavior.
+-
+-    # This next bit is called in process_queue and is here to test if the
+-    # package is marked UNSUPPORTED or UNTESTED and ask the user what he wants
+-    # to do.  If the user chooses to proceed, then the valid DOWNLOAD and
+-    # MD5SUM lines from the .info file are tacked on to the end of the
+-    # *.info.build file.  This way, when read_info is called elsewhere, like
+-    # in get_source via process_package, the newly tacked-on lines will provide
+-    # the 'correct' DOWNLOAD and MD5SUM values.  This is more or less a
+-    # band aid until the multiple read_info invocations can be addressed.
+ 
++    # Handle unsupported/untested packages
+     if [[ $2 == --check_buildable ]]; then
+         if [[ $DOWNLOAD == "UNSUPPORTED" || $DOWNLOAD == "UNTESTED" ]]; then
+             echo
+@@ -2831,17 +2822,15 @@
+                     *) unknown_response ;;
+                 esac
+             done
+-            if [[ $ARCH != "x86_64" ]]; then
+-                echo "DOWNLOAD=\"$DOWNLOAD_x86_64\"" >> $INFO
+-                echo "MD5SUM=\"$MD5SUM_x86_64\"" >> $INFO
+-            else
++            # If the system is either x86_64 or aarch64, save the changes.
++            if [[ $ARCH == "x86_64" || $ARCH == "aarch64" ]]; then
+                 echo "DOWNLOAD_$ARCH=\"$DLSAVE\"" >> $INFO
+                 echo "MD5SUM_$ARCH=\"$MDSAVE\"" >> $INFO
+             fi
+         fi
+     fi
+ 
+-    # Convert the space-separated strings to arrays
++    # Convert the space-separated strings to arrays.
+     DOWNLOAD=($DOWNLOAD)
+     MD5SUM=($MD5SUM)
+ }
