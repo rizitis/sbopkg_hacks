@@ -5181,7 +5181,7 @@ else
                             parse_queue $QUEUEDIR/$PKGBUILD.sqf
                         else
                             echo "$SCRIPT: sqg failed to generate queue for $PKGBUILD." >&2
-                            exit 1
+                            parse_arguments "$PKGBUILD"
                         fi
                 else
                     parse_arguments "$PKGBUILD"
